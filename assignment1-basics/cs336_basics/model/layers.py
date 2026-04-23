@@ -134,4 +134,135 @@ class RotaryPositionalEmbedding(nn.Module):
         self.freq_arrange = 1 / (self.theta**(torch.arange(0, self.d_k, 2).to(dtype=torch.float)/self.d_k))
         self.register_buffer(name='inv_freq', tensor=self.freq_arrange)
 
+    def forword(self, x:torch.Tensor, token_positions: torch.Tensor |None) -> torch.Tensor:
+        # x: (B, H, S, Dh)  或 (B, S, D) 取决于你在哪一层调用，这里假设是 (B,H,S,Dh)
+        # B: batch  H: head S: Seq_len  Dh: Head Dimension(嵌入维度/多头注意力每个head的维度)
+        B = x.size(0)
+        S = x.size(-2)
+
+        #1) 准备positions： 只用(S,) 或 (1,S)
+        if token_positions is None:
+            #只要一个共享位置序列
+            token_positions = torch.arange(S, device=x.device)
         
+        else:
+            # 如果传进来是 (B,S)，取一行或检查每行一致
+            if token_positions.dim() == 2:
+                token_positions = token_positions[0]
+        
+        #2) 相位：(S, Dh/2)
+        theta = einsum(token_positions, self.inv_freq, 's, d -> s d')
+
+        #3) cos/sin: (S, Dh) -> (1,1,S,Dh) 以便对(B,H,S,Dh)广播
+        cos = theta.cos().repeat_interleave(2, dim=-1)[None, None, :, :]
+        sin = theta.sin().repeat_interleave(2, dim=-1)[None, None, :, :]
+
+        #4)旋转
+        rotated_x = self.rotate_tensor(x) #最后一维做偶/奇位对调，便于（两两一组）逆时针旋转计算
+
+        #5)词向量维度两两一组，实现旋转
+        return x * cos + rotated_x * sin
+
+    def rotate_tensor(self, x:torch.Tensor) -> torch.Tenseor:
+        '''
+        create a rotated tensor (x_2k,x_2k+1) -> (-x_2k+1, x_2k)
+        '''
+        x = rearrange(x, '...(s,r) -> ... s r', r =2)
+        
+        #extract the last dimension
+        x_even, x_odd = x.unbind(dim=-1)
+        #exchange position and get the inversed number of odd
+        x = torch.stack((-x_odd, x_even), dim=-1)
+        return rearrange(x,'... s r -> ... (s r)')
+    
+        '''
+        注意：当“当前这段张量在逻辑上不是从位置 0 开始”时,就要主动传token_positions,具体如下：
+            1: 增量生成 / KV cache------处理最新的一个token
+            2: 处理某个长序列的切片
+            3: 不同 batch 样本的位置不一致
+        '''
+
+def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+    '''
+    x: torch.Tensor Input of the softmax
+    dim: int the dimension of x that you want to impelement softmax to
+    '''
+    x = x - torch.max(x, dim=dim, keepdim = True).values
+    x = torch.exp(x)
+    return x / torch.sum(x, dim=dim, keepdim=True)
+
+
+def scaled_dot_product_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    '''
+    q: (B, S_q, D)
+    k: (B, S_k, D)
+    v: (B, S_v, D)
+    mask: (B, S_q, S_k) or None
+    '''
+    q_k_score = einsum(q, k, '... s_q d, ... s_k d -> ... s_q s_k') / q.size(-1)**0.5
+    #add mask
+    if mask is not None:
+        q_k_score = q_k_score.masked_fill(mask == False, float('-inf')) #对一个固定 query，我们要决定它该如何在所有 key 上分配注意力
+    q_k_attention = softmax(q_k_score, dim=-1)                          #如果先 softmax 再乘 0，总概率和就不一定是 1 了，语义不对
+    return einsum(q_k_attention, v, '... s_q s_k, ... s_k d -> ... s_q d')
+
+class multihead_self_attention(nn.Module):
+    def __init__(self, 
+                 d_model, 
+                 num_heads, 
+                 position_embedding: nn.Module = RotaryPositionalEmbedding, 
+                 max_seq_len = None, 
+                 theta = None,
+                 toekn_positions = None,
+                 device = None,
+                 dtype = None,
+                 use_causal_mask = True
+                 ):
+        '''
+        d_model: int Dimensionality of the Transformer block inputs.
+        num_heads: int Number of heads to use in multi-head self-attention.
+        use_causal_mask: bool Whether to apply causal masking.
+        '''
+        super().__init__()
+        self.pe = None
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.use_causal_mask = use_causal_mask
+        assert d_model % self.num_heads == 0, 'number of heads donen\' match d_model'
+
+        self.d_k = d_model // num_heads
+        self.w_q = Linear(self.d_model, self.d_model, device=device, dtype=dtype)   #query
+        self.w_k = Linear(self.d_model, self.d_model, device=device, dtype=dtype)   #key
+        self.w_v = Linear(self.d_model, self.d_model, device=device, dtype=dtype)   #value
+        self.w_o = Linear(self.d_model, self.d_model, device=device, dtype=dtype)   #output
+
+        if position_embedding is not None and theta is not None and max_seq_len is not None:
+            self.pe = position_embedding(theta, self.d_k, max_seq_len)
+        self.token_position = toekn_positions
+    def causal_mask(self, seq_len):
+        mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool))
+        return mask.unsqueeze(0).unsqueeze(0)
+    
+
+    def forward(self, x:torch.Tensor) -> torch.Tensor:
+        q_i = self.w_q(x)
+        k_i = self.w_k(x)
+        v_i = self.w_v(x)
+
+        q_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
+        k_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
+        v_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
+
+        if self.pe is not None:
+            q_i = self.pe(q_i, self.token_position)
+            k_i = self.pe(k_i, self.token_position)
+        mask = None
+        if self.use_causal_mask:
+            mask = self.causal_mask(q_i.size(-2))
+            mask = mask.to(device=q_i.device)
+        atten = scaled_dot_product_attention(q_i, k_i, v_i, mask)
+        #合并为原形状
+        atten = rearrange(atten,'b n_h s d_k -> b s (n_h d_k)', n_h=self.num_heads)
+        out = self.w_o(atten)
+        return out
+            
