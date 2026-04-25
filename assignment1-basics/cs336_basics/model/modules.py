@@ -72,6 +72,7 @@ class RMSNorm(nn.Module):
     def _init_weight(self):
         nn.init.trunc_normal_(self.g_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
 
+#替代传统 FFN
 class SwiGLU(nn.Module):
     def __init__(self, d_model: int, d_ff: int, device=None, dtype=None):
         '''
@@ -87,8 +88,8 @@ class SwiGLU(nn.Module):
         self.d_model = int(d_model)
         self.d_ff = int(d_ff)
         self.w1 = nn.Parameter(torch.empty(self.d_ff, self.d_model, device=device, dtype=dtype))
-        self.w3 = nn.Parameter(torch.empty(self.d_ff, self.d_model, device=device, dtype=dtype))
-        self.w2 = nn.Parameter(torch.empty(self.d_model, self.d_ff, device=device, dtype=dtype))
+        self.w2 = nn.Parameter(torch.empty(self.d_ff, self.d_model, device=device, dtype=dtype))
+        self.w3 = nn.Parameter(torch.empty(self.d_model, self.d_ff, device=device, dtype=dtype))
         self._init_weight()
 
     def forward(self, x) -> torch.Tensor:
@@ -107,12 +108,12 @@ class SwiGLU(nn.Module):
         to d_model
 
         mathematically:
-        output = W2( SiLU(W1 x) * (W3 x) )
+        output = W3( SiLU(W1 x) * (W2 x) )
         '''        
         a = einsum(self.w1, x, 'd_ff d_model, ... d_model -> ... d_ff')
         step1 = a*torch.sigmoid(a)
-        step2 = step1 * einsum(self.w3, x, 'd_ff d_model, ... d_model -> ... d_ff')
-        return einsum(self.w2, step2, 'd_model d_ff, ... d_ff -> ... d_model')
+        step2 = step1 * einsum(self.w2, x, 'd_ff d_model, ... d_model -> ... d_ff')
+        return einsum(self.w3, step2, 'd_model d_ff, ... d_ff -> ... d_model')
     
     def _init_weight(self):
         nn.init.trunc_normal_(self.w1, mean=0.0, std=1.0, a=-3.0, b=3.0)
@@ -249,6 +250,7 @@ class multihead_self_attention(nn.Module):
         k_i = self.w_k(x)
         v_i = self.w_v(x)
 
+        #按注意力头拆分
         q_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
         k_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
         v_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
