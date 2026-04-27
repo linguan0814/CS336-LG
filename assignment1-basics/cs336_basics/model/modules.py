@@ -25,29 +25,6 @@ class Linear(nn.Module):
         torch.nn.init.trunc_normal_(self.weight, mean = 0, std=std, a=-3*std, b=3*std)
 
 
-class Embedding(nn.Mudule):
-    def __init__(self, num_embeddings, embedding_dim, device= None, dtype=None):
-        '''
-        num_embeddings: int size of the vocabulary
-        embedding_dim : int dimension of the embedding vectors, i.e., dmodel
-        device
-        dtype
-        '''
-        super().__init__()
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
-        self.embed_weight = nn.Parameter(torch.empty(num_embeddings, embedding_dim, device=device, dtype=dtype))
-    
-    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
-        if token_ids.dtype == torch.long:
-            pass
-        else:
-            token_ids = token_ids.long()
-        return self.embed_weight[token_ids]
-    
-    def _init_weight(self):
-        nn.init.trunc_normal_(self.embed_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
-
 class RMSNorm(nn.Module):
     def __init__(self, d_model:int, eps: float = 1e-5, device=None, dtype=None):
         '''
@@ -119,6 +96,30 @@ class SwiGLU(nn.Module):
         nn.init.trunc_normal_(self.w1, mean=0.0, std=1.0, a=-3.0, b=3.0)
         nn.init.trunc_normal_(self.w2, mean=0.0, std=1.0, a=-3.0, b=3.0)
         nn.init.trunc_normal_(self.w3, mean=0.0, std=1.0, a=-3.0, b=3.0)
+
+class Embedding(nn.Mudule):
+    def __init__(self, num_embeddings, embedding_dim, device= None, dtype=None):
+        '''
+        num_embeddings: int size of the vocabulary
+        embedding_dim : int dimension of the embedding vectors, i.e., dmodel
+        device
+        dtype
+        '''
+        super().__init__()
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
+        self.embed_weight = nn.Parameter(torch.empty(num_embeddings, embedding_dim, device=device, dtype=dtype))
+    
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        if token_ids.dtype == torch.long:
+            pass
+        else:
+            token_ids = token_ids.long()
+        return self.embed_weight[token_ids]
+    
+    def _init_weight(self):
+        nn.init.trunc_normal_(self.embed_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
+
 
 class RotaryPositionalEmbedding(nn.Module):
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
