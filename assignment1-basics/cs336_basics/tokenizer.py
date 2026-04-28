@@ -5,12 +5,12 @@ class Tokenizer:
     def __init__(self, vocab, merges, special_tokens=None):
         '''
         vocab: dict[int, bytes]
-        merges: list[tuple[bytes, bytes]]
+        merges: list[tuple[bytes, bytes]]   合并顺序
         special_tokens: list[str] | None = None
         '''
         self.vocab = vocab
         self.merges = merges
-        self.special_tokens = special_tokens
+        self.special_tokens = special_tokens    #if special_tokens is not None else []
 
         #vocab is a dict mapping id -> bytes_combination
 
@@ -34,7 +34,7 @@ class Tokenizer:
                 self.byte_2_id_vocab[special_token] = n
 
     @classmethod
-    def from_file(cls, vocab_filepath: str, merges_filepath: str, special_tokens=None):
+    def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens=None):
         '''
         Class method that load a tokenizer from serialized files
 
@@ -53,7 +53,7 @@ class Tokenizer:
             raw_vocab = pickle.load(vf)
 
         norm_vocab: dict[int, bytes] = {}
-        for k, v in raw_vocab.item():
+        for k, v in raw_vocab.items():
             kid = int(k)
             if isinstance(v, str):
                 v = v.encode("utf-8")
@@ -73,20 +73,20 @@ class Tokenizer:
         
         return cls(norm_vocab, norm_merges, special_tokens)
     
-    def pre_tokenization(self, s:str, special_token: list[str]) -> list[str]:
+    def pre_tokenization(self, s:str, special_tokens: list[str]) -> list[str]:
         PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
         #1. no specail
-        if not special_token:
+        if not special_tokens:
             return re.findall(PAT,s)
         
         #2. 长 -> 短 排序， 防止短的抢先匹配
-        toks = sorted(special_token, key=len, reverse=True)
-        union = "|".join(re.escape(t) for t in toks)
-        parts = re.split(f"({union})",s)
+        toks = sorted(special_tokens, key=len, reverse=True)
+        union = "|".join(re.escape(t) for t in toks)    #若st和pat重合，不要把st当正则语法去做特殊处理
+        parts = re.split(f"({union})",s)                #按st先分块
 
         out = []
-        st = set(special_token)
+        st = set(special_tokens)
         for part in parts:
             if not part:
                 continue
@@ -97,7 +97,50 @@ class Tokenizer:
                 out.extend(re.findall(PAT, part))
         return out
         
-    def apply_merge(self, word_byte):
+
+    def encode_text(self, pre_token:str) -> list[int]:
+        '''
+        encode a single pre-token (normal text, not special toekns) to token ids
+        '''
+        def word_2_byte(word:str) -> tuple[bytes, ...]:
+            word_decoded = list(word.encode('UTF-8'))
+            #split the bytes
+            word_byte = [bytes([b]) for b in word_decoded]  #包装成bytes类型，方便后续merge
+            return tuple(word_byte)
+        
+        word_byte = word_2_byte(pre_token)
+        word_byte_after_merge = self.apply_merge(word_byte)
+        token_ids = []
+        for merged_bytes in word_byte_after_merge:
+            id_ = self.byte_2_id_vocab[merged_bytes]
+            token_ids.append(id_)
+        return token_ids
+
+    def encode(self, text:str) -> list[int]:
+        res_token_ids = []
+        pretokenization = self.pre_tokenization(text, self.special_tokens)
+        for part in pretokenization:
+            if self.special_tokens and part in self.special_tokens:
+                special_id = self.byte_2_id_vocab[part.encode('UTF-8')]
+                res_token_ids.append(special_id)
+            else:
+                res_token_ids.extend(self.encode_text(part))
+        return res_token_ids
+    
+    def encode_iterable(self, iterable:Iterable[str]) -> Iterator[int]:
+        for chunk in iterable:
+            yield from self.encode(chunk)
+    
+
+    def decode(self, ids: list[int]) -> str:
+        #transform  to byte_list
+        byte_list = b''.join(self.vocab[id_] for id_ in ids)
+        return byte_list.decode('UTF-8',errors='replace')
+    
+
+    def apply_merge(self, word_byte) -> list[bytes]:
+        if not word_byte:
+            return []
         word = list(word_byte)
         def get_pairs(word):
             pairs = set()
@@ -140,44 +183,3 @@ class Tokenizer:
             else:
                 word_pairs = get_pairs(word)
         return word
-
-
-    def encode_text(self, pre_token:str):
-        '''
-        encode a single pre-token (normal text, not special toekns) to token ids
-        '''
-        def word_2_byte(word:str) -> tuple[bytes, ...]:
-            word_decoded = list(word.encode('UTF-8'))
-            #split the bytes
-            word_byte = [bytes([b]) for b in word_decoded]
-            return tuple(word_byte)
-        
-        word_byte = word_2_byte(pre_token)
-        word_byte_after_merge = self.apply_merge(word_byte)
-        token_ids = []
-        for merged_bytes in word_byte_after_merge:
-            id_ = self.byte_2_id_vocab[merged_bytes]
-            token_ids.append(id_)
-        return token_ids
-
-    def encode(self, text:str) -> list[int]:
-        res_token_ids = []
-        pretkenizeiton = self.pre_tokenization(text, self.special_tokens)
-        for part in self.pre_tokenization:
-            if self.special_tokens and part in self.special_tokens:
-                special_id = self.byte_2_id_vocab[part.encode('UTF-8')]
-                res_token_ids.append(special_id)
-            else:
-                res_token_ids.append(self.vocab[part])
-        return res_token_ids
-    
-    def encode_iterable(self, iterable:Iterable[str]) -> Iterator[int]:
-        for chunk in iterable:
-            yield from self.encode(chunk)
-    
-
-    def decode(self, ids: list[int]) -> str:
-        #transform  to byte_list
-        byte_list = b''.join(self.vocab[id_] for id_ in ids)
-        return byte_list.decode('UTF-8',errors='replace')
-    
