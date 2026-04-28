@@ -58,6 +58,8 @@ def train_bpe(
                 del cnt_pretokens[old_t]
 
     return vocab, merge_rule
+
+
 def pre_tokenization(s: str, special_token: list[str]) -> list[str]:
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 

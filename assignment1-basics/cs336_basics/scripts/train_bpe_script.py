@@ -20,7 +20,7 @@ vocab_size = 10000
 special_tokens = ["<|endoftext|>"]
 
 #train
-vocab, merge = train_bpe(
+vocab, merges = train_bpe(
     input_path=INPUT_PATH,
     vocab_size=vocab_size,
     special_tokens=special_tokens
@@ -30,7 +30,7 @@ os.makedirs(TOKENIZER_DIR, exist_ok=True)
 with open(VOCAB_PATH, "wb") as f:
     pickle.dump(vocab, f)
 with open(MERGES_PATH, "wb") as f:
-    pickle.dump(merge, f)
+    pickle.dump(merges, f)
 
 longest_token = max(vocab.values(), key=len)
 print("最长token:", longest_token, "长度:", len(longest_token))
