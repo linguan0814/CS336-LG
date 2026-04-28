@@ -12,39 +12,11 @@ def train_bpe(
     vocab = _init_vocab({}, special_tokens)
     #pretokenization
     cnt_pretokens = Counter()
-
-    # 1MB 分块读取，留出 100 个字符的尾巴防止 UTF-8 截断
-    CHUNK_SIZE = 4 * 1024 * 1024 
-    TAIL_SIZE = 4096       
-    carry = ""
-
-    with open(input_path, "r", encoding="utf-8") as f:
-        while True:
-            chunk = f.read(CHUNK_SIZE)
-            if not chunk:
-                break
-
-            # 将上一轮剩下的尾巴和这一轮的新内容拼起来
-            buffer = carry + chunk
-
-            # 如果内容够长，就切掉最后 TAIL_SIZE 个字符留到下一轮处理
-            if len(buffer) > TAIL_SIZE:
-                safe_text = buffer[:-TAIL_SIZE]
-                carry = buffer[-TAIL_SIZE:]
-            else:
-                # 如果文件很小或者还没读够 TAIL_SIZE，先全留着
-                safe_text = ""
-                carry = buffer
-
-            # 只处理安全的文本
-            if safe_text:
-                for token in pre_tokenization(safe_text, special_tokens):
-                    cnt_pretokens[word_2_byte(token)] += 1
-
-    # 循环结束后，处理最后剩下的尾巴
-    if carry:
-        for token in pre_tokenization(carry, special_tokens):
-            cnt_pretokens[word_2_byte(token)] += 1
+    with open(input_path, 'r', encoding='UTF-8') as f:
+        text = f.read()
+    chunked_text = pre_tokenization(text, special_tokens)
+    for word in chunked_text:
+        cnt_pretokens[word_2_byte(word)] += 1
     #merge
     merge_rule = []
     while len(vocab) < vocab_size:
@@ -88,21 +60,19 @@ def train_bpe(
     return vocab, merge_rule
 
 
-def pre_tokenization(s: str, special_token: list[str]):
+def pre_tokenization(s: str, special_token: list[str]) -> list[str]:
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
     # ① 没有 special 也要按正则切
     if not special_token:
-        for m in re.finditer(PAT, s):
-            yield m.group(0)
-        return
+        return re.findall(PAT, s)
 
     # ③ 长→短排序，防止短的抢先匹配
     toks = sorted(special_token, key=len, reverse=True)
     union = "|".join(re.escape(t) for t in toks)
     parts = re.split(f"({union})", s)
 
-    #out = []
+    out = []
     st = set(special_token)
     for part in parts:
         if not part:
@@ -110,10 +80,8 @@ def pre_tokenization(s: str, special_token: list[str]):
         # ② special 只作为边界，完全跳过
         if part in st:
             continue
-        for m in re.finditer(PAT, part): 
-            yield m.group(0)
-        #out.extend(re.findall(PAT, part))
-    #return out
+        out.extend(re.findall(PAT, part))
+    return out
 
 # #multiprocessing's pretoken worker
 # def pretoken_worker(input_path, start, end, special_tokens, out_q):
