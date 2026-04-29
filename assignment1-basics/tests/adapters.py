@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from email.policy import strict
 import os
 from collections.abc import Iterable
 from typing import IO, Any, BinaryIO
 
+from numpy import number
 import numpy.typing as npt
+from sympy import true
 import torch
 from jaxtyping import Bool, Float, Int
-from torch import Tensor
+from torch import Tensor, embedding
 
 
 def run_linear(
@@ -28,8 +31,21 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
+    from cs336_basics.model.modules import Linear
+    linear_layer = Linear(
+        in_dim = d_in,
+        out_dim = d_out,
+        device = in_features.device,
+        dtype = in_features.dtype
+    )
+    if weights is not None:
+        weight_state ={'weight':weights.to(device = in_features.device, dtype = in_features.dtype)}
+        linear_layer.load_state_dict(weight_state, strict=True)
+    linear_layer.eval()
+    with torch.no_grad():
+        out = linear_layer(in_features)
+    return out
 
-    raise NotImplementedError
 
 
 def run_embedding(
@@ -50,8 +66,18 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-
-    raise NotImplementedError
+    from cs336_basics.model.modules import Embedding
+    embedding_layer = Embedding(
+        vocab_size = vocab_size,
+        d_model = d_model,
+    )
+    if weights is not None:
+        embed_state = {'weight': weights.to(device=token_ids.device)}
+        embedding_layer.load_state_dict(embed_state, strict=True)
+    embedding_layer.eval()
+    with torch.no_grad():
+        out = embedding_layer(token_ids)
+    return out
 
 
 def run_swiglu(
@@ -83,7 +109,22 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    from cs336_basics.model.modules import SwiGLU
+    FFN_layer = SwiGLU(
+        d_model=d_model,
+        d_ff = d_ff,
+        device=in_features.device,
+        dtype=in_features.dtype,
+    )
+    
+    with torch.no_grad():
+        FFN_layer.w1.copy_(w1_weight.to(in_features.device, in_features.dtype))
+        FFN_layer.w2.copy_(w2_weight.to(in_features.device, in_features.dtype))
+        FFN_layer.w3.copy_(w3_weight.to(in_features.device, in_features.dtype))
+    FFN_layer.eval()
+    with torch.no_grad():
+        return  FFN_layer(in_features)
+
 
 
 def run_scaled_dot_product_attention(
@@ -104,7 +145,8 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    from cs336_basics.model.modules import scaled_dot_product_attention
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
