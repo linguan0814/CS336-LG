@@ -42,7 +42,7 @@ class RMSNorm(nn.Module):
     def forward(self, x:torch.Tensor) -> torch.Tensor:
         in_dtype = x.dtype
         x = x.to(dtype=torch.float32)
-        rms = torch.sqrt(torch.mean(x**2, dim=1, keepdim=True)+self.esp)
+        rms = torch.sqrt(torch.mean(x**2, dim=-1, keepdim=True)+self.esp)
         out = einsum(x/rms, self.g_weight,'... d, d -> ... d')
         return out.to(dtype=in_dtype)
     
@@ -136,7 +136,7 @@ class RotaryPositionalEmbedding(nn.Module):
         self.freq_arrange = 1 / (self.theta**(torch.arange(0, self.d_k, 2).to(dtype=torch.float)/self.d_k))
         self.register_buffer(name='inv_freq', tensor=self.freq_arrange)
 
-    def forword(self, x:torch.Tensor, token_positions: torch.Tensor |None) -> torch.Tensor:
+    def forward(self, x:torch.Tensor, token_positions: torch.Tensor |None) -> torch.Tensor:
         # x: (B, H, S, Dh)  或 (B, S, D) 取决于你在哪一层调用，这里假设是 (B,H,S,Dh)
         # B: batch  H: head S: Seq_len  Dh: Head Dimension(嵌入维度/多头注意力每个head的维度)
         B = x.size(0)
@@ -147,18 +147,18 @@ class RotaryPositionalEmbedding(nn.Module):
             #只要一个共享位置序列
             token_positions = torch.arange(S, device=x.device)
         
-        else:
-            # 如果传进来是 (B,S)，取一行或检查每行一致
-            if token_positions.dim() == 2:
-                token_positions = token_positions[0]
         
         #2) 相位：(S, Dh/2)
-        theta = einsum(token_positions, self.inv_freq, 's, d -> s d')
-
-        #3) cos/sin: (S, Dh) -> (1,1,S,Dh) 以便对(B,H,S,Dh)广播
-        cos = theta.cos().repeat_interleave(2, dim=-1)[None, None, :, :]
-        sin = theta.sin().repeat_interleave(2, dim=-1)[None, None, :, :]
-
+        theta = einsum(token_positions, self.inv_freq, '... s, d -> ... s d')
+        token_positions = token_positions.to(device=x.device)
+        #3)cos/sin: (..., seq_len, d_k)
+        cos = theta.cos().repeat_interleave(2, dim=-1)
+        sin = theta.sin().repeat_interleave(2, dim=-1)
+        #若x是(B, H, S, D)而cos是(B, S, D)，插入head维->(B, 1, S, D)
+        #若x是(B, S, D)，cos已经匹配，不插入
+        while cos.ndim < x.ndim:
+            cos = cos.unsqueeze(-3)
+            sin = sin.unsqueeze(-3)
         #4)旋转
         rotated_x = self.rotate_tensor(x) #最后一维做偶/奇位对调，便于（两两一组）逆时针旋转计算
 
@@ -169,7 +169,7 @@ class RotaryPositionalEmbedding(nn.Module):
         '''
         create a rotated tensor (x_2k,x_2k+1) -> (-x_2k+1, x_2k)
         '''
-        x = rearrange(x, '...(s,r) -> ... s r', r =2)
+        x = rearrange(x, '...(s r) -> ... s r', r =2)
         
         #extract the last dimension
         x_even, x_odd = x.unbind(dim=-1)
@@ -215,7 +215,7 @@ class multihead_self_attention(nn.Module):
                  position_embedding: nn.Module = RotaryPositionalEmbedding, 
                  max_seq_len = None, 
                  theta = None,
-                 toekn_positions = None,
+                 #token_positions = None,
                  device = None,
                  dtype = None,
                  use_causal_mask = True
@@ -240,25 +240,25 @@ class multihead_self_attention(nn.Module):
 
         if position_embedding is not None and theta is not None and max_seq_len is not None:
             self.pe = position_embedding(theta, self.d_k, max_seq_len)
-        self.token_position = toekn_positions
+        #self.token_positions = token_positions
     def causal_mask(self, seq_len):
         mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool))
         return mask.unsqueeze(0).unsqueeze(0)
     
 
-    def forward(self, x:torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         q_i = self.w_q(x)
         k_i = self.w_k(x)
         v_i = self.w_v(x)
 
         #按注意力头拆分
         q_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
-        k_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
-        v_i = rearrange(q_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
+        k_i = rearrange(k_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
+        v_i = rearrange(v_i, 'b s (n_h d_k) -> b n_h s d_k', n_h=self.num_heads)
 
         if self.pe is not None:
-            q_i = self.pe(q_i, self.token_position)
-            k_i = self.pe(k_i, self.token_position)
+            q_i = self.pe(q_i, token_positions)
+            k_i = self.pe(k_i, token_positions)
         mask = None
         if self.use_causal_mask:
             mask = self.causal_mask(q_i.size(-2))

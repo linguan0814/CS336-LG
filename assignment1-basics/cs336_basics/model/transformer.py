@@ -4,7 +4,14 @@ import cs336_basics.model.modules as modules
 from cs336_basics.model.modules import SwiGLU as FFN
 
 class transformer_block(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, max_seq_len, theta, device=None, dtype=None):
+    def __init__(self, 
+                 d_model, 
+                 num_heads, 
+                 d_ff, 
+                 max_seq_len, 
+                 theta, 
+                 device=None, 
+                 dtype=None):
         '''
         d_model: int Dimensionlity of the Transformer block inputs
         num_heads: int Number of heads to use in multi-head self-attention
@@ -23,8 +30,8 @@ class transformer_block(nn.Module):
         self.attn = modules.multihead_self_attention(
             d_model,
             num_heads,
-            max_seq_len,
-            theta,
+            max_seq_len=max_seq_len,
+            theta=theta,
         )
 
         # Make RoPE buffer non-persistent so tests don't require providing it in state_dict
@@ -46,48 +53,68 @@ class transformer_block(nn.Module):
         if device is not None or dtype is not None:
             self.to(device=device, dtype=dtype)
 
-        def forward(self, in_featurs:torch.Tensor) -> torch.Tensor:
-            '''
-            Input tensor shape: (batch, sen_len, d_model)
-            Pre-norm Transformer block:
-                x = x + Attn(LN1(x))
-                x = x + FFN(LN2(X))
-            '''
-
-            x = in_featurs
-            x = self.attn(self.ln1(x))
-            return x
+    def forward(
+        self,
+        in_features: torch.Tensor,
+        token_positions: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        x = in_features
+        x = x + self.attn(self.ln1(x), token_positions=token_positions)
+        x = x + self.ffn(self.ln2(x))
+        return x
         
-class transformer_lm(nn.module):
-    def __init__(self, vocab_size:int, context_length: int, num_layers: int, d_model: int, num_heads: int,  rope_theta: float, d_ff:int):
-        '''
-        vocab_size: int The size of vocabulary, necessary for determining the dimensionality of the token embedding matrix
-        context_lengh: int The maximum context length, necessary for determining the dimensionality of the poition embedding maxtrix (one chat)
-        nums_layers: int The number of Transformer blocks to use
-        '''
+class transformer_lm(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        num_layers: int,
+        d_model: int,
+        num_heads: int,
+        rope_theta: float,
+        d_ff: int,
+        device=None,
+        dtype=None,
+    ):
         super().__init__()
+
         self.vocab_size = vocab_size
         self.context_length = context_length
         self.num_layers = num_layers
-        self.token_embedding = modules.Embedding(vocab_size, embedding_dim=d_model)
-        self.layers = nn.ModuleList(
-            [
-                transformer_block(
-                    d_model=d_model,
-                    num_heads = num_heads,
-                    d_ff = d_ff,
-                    max_seq_len = context_length,
-                    theta = rope_theta,
-                )
-            for _ in range(num_layers)
-            ]
+
+        self.token_embedding = modules.Embedding(
+            vocab_size,
+            d_model=d_model,
+            device=device,
+            dtype=dtype,
         )
-        self.output_norm = modules.RMSNorm(d_model)
-        self.output_embedding = modules.Linear(in_features=d_model, out_features=vocab_size)
-    
-    def forward(self, x: torch.Tensor):
-        x = self.token_embedding(x)         #(batch, seq, d_model)
-        for layers in self.layers:          #stack of Transsformer blocks
-            x = layers(x)
-        x = self.output_norm(x)             #pre-logits norm
-        x = self.output_embedding(x)        #logits(no softmax)
+
+        self.layers = nn.ModuleList([
+            transformer_block(
+                d_model=d_model,
+                num_heads=num_heads,
+                d_ff=d_ff,
+                max_seq_len=context_length,
+                theta=rope_theta,
+                device=device,
+                dtype=dtype,
+            )
+            for _ in range(num_layers)
+        ])
+
+        self.output_norm = modules.RMSNorm(d_model,device=device,dtype=dtype,)
+        self.output_embedding = modules.Linear(in_dim=d_model,out_dim=vocab_size,device=device,dtype=dtype,)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        token_positions: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        x = self.token_embedding(x)
+
+        for layer in self.layers:
+            x = layer(x, token_positions=token_positions)
+
+        x = self.output_norm(x)
+        x = self.output_embedding(x)
+        return x
