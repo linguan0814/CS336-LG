@@ -57,7 +57,8 @@ def learning_rate_schedule(
     if it < warmup_iters:
         return it*max_learning_rate/warmup_iters
     elif warmup_iters <= it <= cosine_cycle_iters:
-        return min_learning_rate + 0.5 * (1 + math.cos(...)) * (max_learning_rate - min_learning_rate)
+        progress = (it - warmup_iters) / (cosine_cycle_iters - warmup_iters)* math.pi
+        return min_learning_rate + 0.5 * (1 + math.cos(progress)) * (max_learning_rate - min_learning_rate)
         #math.cos((it - warmup_iters)*math.pi/(cosine_cycle_iters - warmup_iters))
     else:
         return min_learning_rate
