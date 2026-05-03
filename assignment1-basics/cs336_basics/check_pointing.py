@@ -1,6 +1,6 @@
 import torch
 import torch.nn
-def save_checkpoint(model, optimizer, iteration, out):
+def save_checkpoint(model, optimizer, iteration, out, model_config=None):
     '''
     model: torch.nn.Module
     optimizer: torch.optim.Optimizer
@@ -8,14 +8,15 @@ def save_checkpoint(model, optimizer, iteration, out):
     out: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]
     '''
 
-    torch.save(
-        obj={
-            'model_state': model.state_dict(),
-            'optimizer_state': optimizer.state_dict(),
-            'iteration': iteration,
-        },
-        f = out
-    )
+    checkpoint = {
+        'model_state': model.state_dict(),
+        'optimizer_state': optimizer.state_dict(),
+        'iteration': iteration,
+    }
+    if model_config is not None:
+        checkpoint['model_config'] = model_config
+
+    torch.save(obj=checkpoint, f=out)
 
 def load_checkpoint(src, model, optimizer) -> int:
     '''

@@ -1,59 +1,25 @@
-import pickle
-import os
-import pathlib
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from cs336_basics.tokenizer import Tokenizer
 import numpy as np
 from tqdm import tqdm
+import pathlib
+import sys
 
-TOKENIZER_DIR = pathlib.Path(__file__).resolve().parent.parent / "tokenizer"
-VOCAB_PATH = os.path.join(TOKENIZER_DIR, "tinystories_bpe_vocab.pkl")
-MERGES_PATH = os.path.join(TOKENIZER_DIR, "tinystories_bpe_merges.pkl")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
-TRAIN_TXT_DATA_PATH = os.path.join(DATA_DIR, "TinyStoriesV2-GPT4-train.txt")
-VAL_TXT_DATA_PATH = os.path.join(DATA_DIR, "TinyStoriesV2-GPT4-valid.txt")
-TRAIN_DATA_PATH = os.path.join(DATA_DIR, "train.dat")
-VAL_DATA_PATH = os.path.join(DATA_DIR, "valid.dat")
+from cs336_basics.tokenizer import Tokenizer
+
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+TOKENIZER_DIR = PROJECT_ROOT / "artifacts" / "tokenizers" / "tinystories_bpe_vocab10000_eot-im"
+VOCAB_PATH = TOKENIZER_DIR / "vocab.pkl"
+MERGES_PATH = TOKENIZER_DIR / "merges.pkl"
+
+DATA_DIR = PROJECT_ROOT / "data"
+TRAIN_TXT_DATA_PATH = DATA_DIR / "TinyStoriesV2-GPT4-train.txt"
+VAL_TXT_DATA_PATH = DATA_DIR / "TinyStoriesV2-GPT4-valid.txt"
+OUTPUT_DIR = PROJECT_ROOT / "artifacts" / "tokenized" / "tinystories_bpe_vocab10000_eot-im"
+TRAIN_DATA_PATH = OUTPUT_DIR / "train.dat"
+VAL_DATA_PATH = OUTPUT_DIR / "valid.dat"
 
 special_tokens = ["<|endoftext|>"]
-
-# 读取词表和merges
-with open(VOCAB_PATH, 'rb') as f:
-    vocab = pickle.load(f)
-with open(MERGES_PATH, 'rb') as f:
-    merges = pickle.load(f)
-
-# 构造tokenizer
-tokenizer = Tokenizer(
-    vocab=vocab,
-    merges=merges,
-    special_tokens=special_tokens
-)
-
-print("=== 测试 Tokenizer ===")
-test_texts = [
-    "Once upon a time, there was a little robot.",
-    "Hello world! <|endoftext|> Some more text.",
-    "<|endoftext|>",
-    "你好，世界！"
-]
-
-for text in test_texts:
-    print(f"\n原文: {text}")
-    encoded = tokenizer.encode(text)
-    print("编码:", encoded)
-
-    byte_tokens = [tokenizer.vocab[token_id] for token_id in encoded]
-    str_tokens = [b.decode("utf-8", errors="replace") for b in byte_tokens]
-    print("分词（可读）:", str_tokens)
-
-    decoded = tokenizer.decode(encoded)
-    print("解码:", decoded)
-    print("是否完全还原:", decoded == text)
-
-
 
 def encode_txt_as_numpy_array(tokenizer, path_to_txt, save_path):
     with open(path_to_txt, 'r') as f:
@@ -81,6 +47,33 @@ def encode_txt_as_numpy_array(tokenizer, path_to_txt, save_path):
     tokens_mm.flush()
 
 def main():
+    tokenizer = Tokenizer.from_files(
+        vocab_filepath=str(VOCAB_PATH),
+        merges_filepath=str(MERGES_PATH),
+        special_tokens=special_tokens,
+    )
+
+    print("=== 测试 Tokenizer ===")
+    test_texts = [
+        "Once upon a time, there was a little robot.",
+        "Hello world! <|endoftext|> Some more text.",
+        "<|endoftext|>",
+        "你好，世界！"
+    ]
+
+    for text in test_texts:
+        print(f"\n原文: {text}")
+        encoded = tokenizer.encode(text)
+        print("编码:", encoded)
+
+        byte_tokens = [tokenizer.vocab[token_id] for token_id in encoded]
+        str_tokens = [b.decode("utf-8", errors="replace") for b in byte_tokens]
+        print("分词（可读）:", str_tokens)
+
+        decoded = tokenizer.decode(encoded)
+        print("解码:", decoded)
+        print("是否完全还原:", decoded == text)
+
     encode_txt_as_numpy_array(tokenizer, TRAIN_TXT_DATA_PATH, TRAIN_DATA_PATH)
     encode_txt_as_numpy_array(tokenizer, VAL_TXT_DATA_PATH, VAL_DATA_PATH)
 
