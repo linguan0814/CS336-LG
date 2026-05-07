@@ -1,0 +1,14 @@
+{
+  "os": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "python": "CPython 3.13.13",
+  "startedAt": "2026-05-07T07:22:33.870457Z",
+  "program": "<stdin>",
+  "git": {
+    "remote": "git@github.com:linguan0814/CS336-LG.git",
+    "commit": "337d4ebec4b73e6917bcc56665c6b5043cc81e64"
+  },
+  "root": "/home/yyh/projects/CS336-LG/assignment1-basics",
+  "host": "DESKTOP-MP50LLA",
+  "executable": "/home/yyh/projects/CS336-LG/assignment1-basics/.venv/bin/python",
+  "writerId": "zupwq2t6v8cai0h7bpvce3rtpapqeryf"
+}

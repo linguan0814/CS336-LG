@@ -1,0 +1,26 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            zupwq2t6v8cai0h7bpvce3rtpapqeryf:
+                executable: /home/yyh/projects/CS336-LG/assignment1-basics/.venv/bin/python
+                git:
+                    commit: 337d4ebec4b73e6917bcc56665c6b5043cc81e64
+                    remote: git@github.com:linguan0814/CS336-LG.git
+                host: DESKTOP-MP50LLA
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35
+                program: <stdin>
+                python: CPython 3.13.13
+                root: /home/yyh/projects/CS336-LG/assignment1-basics
+                startedAt: "2026-05-07T07:22:33.870457Z"
+                writerId: zupwq2t6v8cai0h7bpvce3rtpapqeryf
+        m: []
+        python_version: 3.13.13
+        t:
+            "3":
+                - 2
+                - 13
+            "4": 3.13.13
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64

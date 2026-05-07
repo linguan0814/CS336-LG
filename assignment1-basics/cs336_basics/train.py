@@ -28,6 +28,7 @@ from cs336_basics.trainer.data_loading import data_loading
 from cs336_basics.trainer.utils import cross_entropy, learning_rate_schedule, gradient_clipping
 from cs336_basics.check_pointing import save_checkpoint, load_checkpoint
 import wandb.integration
+import socket
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a Transformer language model')
@@ -57,7 +58,7 @@ def parse_args():
     parser.add_argument('--train_steps', type=int, default=6000, help='Total training steps')
     parser.add_argument('--val_interval', type=int, default=100, help='Validation interval')
     parser.add_argument('--val_batches', type=int, default=10, help='Number of validation batches')
-    parser.add_argument('--save_intervals', type=int, default=1000, help='Checkpoint save interval')
+    parser.add_argument('--save_intervals', type=int, default=5000, help='Checkpoint save interval')
     parser.add_argument('--log_intervals', type=int, default=1, help='Logging interval')
     parser.add_argument('--save_ckp_path', type=str, default='./checkpoints', help='Checkpoint save directory')
     parser.add_argument('--resume_ckp', type=str, default=None, help='Path to checkpoint to resume from')
@@ -67,9 +68,9 @@ def parse_args():
     parser.add_argument('--device', type=str, default='auto', help='Device: auto, cpu, cuda, mps')
 
     # Wandb arguments
-    parser.add_argument('--wandb_entity', type=str, default='linguan_2025', help='Wandb entity/user/team name')
-    parser.add_argument('--wandb_project', type=str, default='cs336', help='Wandb project name for all CS336 runs')
-    parser.add_argument('--wandb_group', type=str, default=None, help='Wandb group, defaults to the assignment name')
+    parser.add_argument('--wandb_entity', type=str, default=None, help='Wandb entity/user/team name')
+    parser.add_argument('--wandb_project',type=str,default="CS336",help='Wandb project name for all CS336 runs')
+    parser.add_argument('--wandb_group',type=str,default=None,help='Wandb group, defaults to the assignment name')
     parser.add_argument('--wandb_job_type', type=str, default='train-lm', help='Wandb job type')
     parser.add_argument('--wandb_run_name', type=str, default=None, help='Wandb run name')
     parser.add_argument('--wandb_tags', type=str, nargs='*', default=None, help='Extra Wandb tags')
@@ -137,9 +138,10 @@ def build_wandb_run_name(args, assignment_name, dataset_name):
         return args.wandb_run_name
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    host = slugify(socket.gethostname())
     model_part = f"l{args.num_layers}-d{args.d_model}-h{args.num_heads}-ctx{args.context_len}"
     train_part = f"bs{args.batch_size}-steps{args.train_steps}-lr{args.max_lr:g}"
-    return f"{assignment_name}-lm-{dataset_name}-{model_part}-{train_part}-{timestamp}"
+    return f"{assignment_name}-lm-{dataset_name}-{model_part}-{train_part}-{host}-{timestamp}"
 
 def init_wandb(args, device, data_meta):
     assignment_name = infer_assignment_name()
@@ -165,16 +167,29 @@ def init_wandb(args, device, data_meta):
     os.environ.setdefault("WANDB_CACHE_DIR", wandb_cache_dir)
     os.environ.setdefault("WANDB_CONFIG_DIR", wandb_config_dir)
 
-    wandb.init(
-        entity=args.wandb_entity,
-        project=args.wandb_project,
-        group=group,
-        job_type=args.wandb_job_type,
-        name=run_name,
-        tags=tags,
-        config=config,
-        dir=wandb_dir,
+    wandb_kwargs = {
+        "project": args.wandb_project,
+        "group": group,
+        "job_type": args.wandb_job_type,
+        "name": run_name,
+        "tags": tags,
+        "config": config,
+        "dir": wandb_dir,
+    }
+
+    if args.wandb_entity:
+        wandb_kwargs["entity"] = args.wandb_entity
+
+    print(
+        f"Initializing W&B: "
+        f"entity={args.wandb_entity or '<wandb default>'}, "
+        f"project={args.wandb_project}, "
+        f"group={group}, "
+        f"run={run_name}"
     )
+
+    wandb.init(**wandb_kwargs)
+
     wandb.define_metric("iteration")
     wandb.define_metric("train/*", step_metric="iteration")
     wandb.define_metric("val/*", step_metric="iteration")

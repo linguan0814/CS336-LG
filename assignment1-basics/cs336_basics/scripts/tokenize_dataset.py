@@ -14,10 +14,10 @@ from cs336_basics.tokenizer import Tokenizer
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-DEFAULT_TOKENIZER_DIR = PROJECT_ROOT / "artifacts" / "tokenizers" / "tinystories_bpe_vocab10000_eot-im"
-DEFAULT_TRAIN_TXT = PROJECT_ROOT / "data" / "TinyStoriesV2-GPT4-train.txt"
-DEFAULT_VALID_TXT = PROJECT_ROOT / "data" / "TinyStoriesV2-GPT4-valid.txt"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "artifacts" / "tokenized" / "tinystories_bpe_vocab10000_eot-im"
+DEFAULT_TOKENIZER_DIR = PROJECT_ROOT / "artifacts" / "tokenizers" / "owt_bpe_vocab32000_eot-im"
+DEFAULT_TRAIN_TXT = PROJECT_ROOT / "data" / "owt_train.txt"
+DEFAULT_VALID_TXT = PROJECT_ROOT / "data" / "owt_valid.txt"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "artifacts" / "tokenized" / "owt_bpe_vocab32000_eot-im"
 
 
 def parse_args() -> argparse.Namespace:
