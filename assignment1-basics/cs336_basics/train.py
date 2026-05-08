@@ -13,11 +13,8 @@ import os
 import sys
 import json
 import torch
-import pathlib
 import numpy as np
 import time
-import re
-from datetime import datetime
 from tqdm import tqdm
 import wandb
 
@@ -26,9 +23,15 @@ from cs336_basics.model.transformer import transformer_lm
 from cs336_basics.trainer.AdamW import AdamW
 from cs336_basics.trainer.data_loading import data_loading
 from cs336_basics.trainer.utils import cross_entropy, learning_rate_schedule, gradient_clipping
+from cs336_basics.trainer.experiment_logger import (
+    LocalExperimentLogger,
+    build_run_name,
+    get_model_config,
+    infer_assignment_name,
+    infer_dataset_name,
+)
 from cs336_basics.check_pointing import save_checkpoint, load_checkpoint
 import wandb.integration
-import socket
 
 
 def parse_args():
@@ -63,6 +66,7 @@ def parse_args():
     parser.add_argument("--log_intervals", type=int, default=1, help="Logging interval")
     parser.add_argument("--save_ckp_path", type=str, default="./checkpoints", help="Checkpoint save directory")
     parser.add_argument("--resume_ckp", type=str, default=None, help="Path to checkpoint to resume from")
+    parser.add_argument("--no_local_log", action="store_true", help="Disable local config/metrics logging")
 
     # Data arguments
     parser.add_argument("--data_dir", type=str, default=None, help="Data directory path")
@@ -101,32 +105,6 @@ def get_dataset_memmap(path, dtype=np.uint16):
     return dataset
 
 
-def get_model_config(args):
-    return {
-        "vocab_size": args.vocab_size,
-        "context_length": args.context_len,
-        "num_layers": args.num_layers,
-        "d_model": args.d_model,
-        "num_heads": args.num_heads,
-        "rope_theta": args.rope_theta,
-        "d_ff": args.d_ff,
-    }
-
-
-def slugify(text):
-    text = str(text).strip().lower()
-    text = re.sub(r"[^a-z0-9]+", "-", text)
-    return text.strip("-") or "run"
-
-
-def infer_assignment_name():
-    current = pathlib.Path(__file__).resolve()
-    for parent in current.parents:
-        if parent.name.startswith("assignment"):
-            return slugify(parent.name)
-    return "cs336"
-
-
 def load_data_meta(data_dir):
     meta_path = os.path.join(data_dir, "meta.json")
     if not os.path.exists(meta_path):
@@ -135,28 +113,10 @@ def load_data_meta(data_dir):
         return json.load(f)
 
 
-def infer_dataset_name(data_dir, data_meta):
-    tokenizer_dir = data_meta.get("tokenizer_dir")
-    if tokenizer_dir:
-        return slugify(pathlib.Path(tokenizer_dir).name)
-    return slugify(pathlib.Path(data_dir).name)
-
-
-def build_wandb_run_name(args, assignment_name, dataset_name):
-    if args.wandb_run_name:
-        return args.wandb_run_name
-
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    host = slugify(socket.gethostname())
-    model_part = f"l{args.num_layers}-d{args.d_model}-h{args.num_heads}-ctx{args.context_len}"
-    train_part = f"bs{args.batch_size}-steps{args.train_steps}-lr{args.max_lr:g}"
-    return f"{assignment_name}-lm-{dataset_name}-{model_part}-{train_part}-{host}-{timestamp}"
-
-
 def init_wandb(args, device, data_meta):
     assignment_name = infer_assignment_name()
     dataset_name = infer_dataset_name(args.data_dir, data_meta)
-    run_name = build_wandb_run_name(args, assignment_name, dataset_name)
+    run_name = build_run_name(args, assignment_name, dataset_name)
     group = args.wandb_group or assignment_name
     tags = [assignment_name, "language-modeling", dataset_name]
     if args.wandb_tags:
@@ -210,6 +170,7 @@ def init_wandb(args, device, data_meta):
 
 
 def main():
+    run_started_at = time.time()
     args = parse_args()
     if args.data_dir is None:
         raise ValueError("Data directory must be specified with --data_dir")
@@ -221,12 +182,18 @@ def main():
     data_meta = load_data_meta(args.data_dir)
     model_config = get_model_config(args)
 
-    # Initialize wandb
-    if not args.no_wandb:
-        init_wandb(args, device, data_meta)
-
-    # Create checkpoint directory
+    # Create checkpoint/log directory before any optional external logging.
     os.makedirs(args.save_ckp_path, exist_ok=True)
+    local_log = LocalExperimentLogger(args, device, data_meta, model_config)
+
+    # Initialize wandb
+    wandb_enabled = False
+    if not args.no_wandb:
+        try:
+            init_wandb(args, device, data_meta)
+            wandb_enabled = True
+        except Exception as exc:
+            print(f"Wandb initialization failed; continuing with local logs only. Error: {exc}")
 
     # Initialize model
     model = transformer_lm(
@@ -243,7 +210,7 @@ def main():
     print(f"Model initialized with {total_params} parameters")
 
     # Log model info to wandb
-    if not args.no_wandb:
+    if wandb_enabled:
         wandb.config.update({"model_total_parameters": total_params}, allow_val_change=True)
         wandb.log({"model/total_parameters": total_params, "iteration": 0})
 
@@ -265,6 +232,13 @@ def main():
 
     print(f"Train data size: {len(train_data)} tokens")
     print(f"Val data size: {len(val_data)} tokens")
+    local_log.add_dataset_info(
+        train_data_path=train_data_path,
+        val_data_path=val_data_path,
+        train_tokens=len(train_data),
+        val_tokens=len(val_data),
+        total_params=total_params,
+    )
 
     # Resume from checkpoint if specified
     start_iter = 0
@@ -277,6 +251,7 @@ def main():
     model.train()
     train_losses = []
     completed_iter = start_iter
+    stop_status = "completed"
 
     # Create progress bar
     pbar = tqdm(
@@ -326,6 +301,7 @@ def main():
         # Non-finite loss check before backward
         if not torch.isfinite(loss):
             tqdm.write(f"Non-finite loss at step {iter_num}: {loss.item()}")
+            stop_status = f"stopped_non_finite_loss_step_{iter_num}"
             break
 
         # Backward pass
@@ -342,6 +318,7 @@ def main():
 
         if bad_grad:
             tqdm.write(f"Non-finite grad at step {iter_num}: {bad_grad_name}")
+            stop_status = f"stopped_non_finite_grad_step_{iter_num}"
             break
 
         # Gradient clipping
@@ -369,8 +346,19 @@ def main():
                 }
             )
 
+            local_log.log_metric(
+                {
+                    "split": "train",
+                    "iteration": int(iter_num),
+                    "loss": float(loss.item()),
+                    "avg_loss": float(avg_loss),
+                    "perplexity": float(perplexity),
+                    "learning_rate": float(lr),
+                }
+            )
+
             # Log to wandb
-            if not args.no_wandb:
+            if wandb_enabled:
                 wandb.log(
                     {
                         "train/loss": loss.item(),
@@ -411,8 +399,18 @@ def main():
             # Log validation metrics
             tqdm.write(f"Validation | Loss: {avg_val_loss:.4f} | PPL: {val_perplexity:.2f}")
 
+            local_log.log_metric(
+                {
+                    "split": "val",
+                    "iteration": int(iter_num),
+                    "loss": float(avg_val_loss),
+                    "perplexity": float(val_perplexity),
+                    "val_batches": int(args.val_batches),
+                }
+            )
+
             # Log to wandb
-            if not args.no_wandb:
+            if wandb_enabled:
                 wandb.log(
                     {
                         "val/loss": avg_val_loss,
@@ -438,9 +436,16 @@ def main():
     save_checkpoint(model, optimizer, completed_iter, final_checkpoint_path, model_config=model_config)
     print(f"Final checkpoint saved: {final_checkpoint_path}")
     print(f"Training completed at iteration {completed_iter}!")
+    local_log.write_summary(
+        completed_iter=completed_iter,
+        final_checkpoint_path=final_checkpoint_path,
+        total_params=total_params,
+        status=stop_status,
+        elapsed_seconds=time.time() - run_started_at,
+    )
 
     # Finish wandb
-    if not args.no_wandb:
+    if wandb_enabled:
         wandb.finish()
 
 
