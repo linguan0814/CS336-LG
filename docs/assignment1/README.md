@@ -158,8 +158,9 @@ docs/
     ├── README.md
     ├── BPE-tokenizer.md
     ├── transformer_lm.md
-    ├── training_pipeline.md
+    ├── train.md
     ├── generation.md
+    ├── tools.md
     ├── experiments.md
     └── debugging_notes.md
 ```
