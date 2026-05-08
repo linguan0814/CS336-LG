@@ -3,7 +3,7 @@ from collections import Counter
 import os
 import heapq
 from tqdm import tqdm
-
+#fast 16GB内存占用，适合OWT --- IGNORE ---
 
 class _ReversePair:
     def __init__(self, pair: tuple[bytes, bytes]):

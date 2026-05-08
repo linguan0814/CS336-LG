@@ -1,4 +1,4 @@
-#快，但内存占用过大（OWT，需要16GB）
+#baseline / full-rescan version
 import regex as re
 from collections import Counter
 import os

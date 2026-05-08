@@ -58,7 +58,7 @@ def parse_args():
     parser.add_argument('--train_steps', type=int, default=6000, help='Total training steps')
     parser.add_argument('--val_interval', type=int, default=100, help='Validation interval')
     parser.add_argument('--val_batches', type=int, default=10, help='Number of validation batches')
-    parser.add_argument('--save_intervals', type=int, default=5000, help='Checkpoint save interval')
+    parser.add_argument('--save_intervals', type=int, default=6000, help='Checkpoint save interval')
     parser.add_argument('--log_intervals', type=int, default=1, help='Logging interval')
     parser.add_argument('--save_ckp_path', type=str, default='./checkpoints', help='Checkpoint save directory')
     parser.add_argument('--resume_ckp', type=str, default=None, help='Path to checkpoint to resume from')

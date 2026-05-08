@@ -15,8 +15,8 @@ INPUT_PATH = PROJECT_ROOT / "data" / "owt_train.txt"
 
 # config
 VOCAB_SIZE = 32_000
-SPECIAL_TOKENS = ["<|endoftext|>", "<|im_start|>", "<|im_end|>"]
-RUN_NAME = f"owt_bpe_vocab{VOCAB_SIZE}_eot-im"
+SPECIAL_TOKENS = ["<|endoftext|>"]
+RUN_NAME = f"owt_bpe_vocab{VOCAB_SIZE}_eot"
 
 OUTPUT_DIR = PROJECT_ROOT / "artifacts" / "tokenizers" / RUN_NAME
 VOCAB_PATH = OUTPUT_DIR / "vocab.pkl"
