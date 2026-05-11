@@ -11,12 +11,13 @@ import argparse
 import json
 from pathlib import Path
 from contextlib import nullcontext
+from datetime import datetime
 model_configs = [
     {"size": "small", "d_model": 768, "d_ff": 3072, "num_layers": 12, "num_heads": 12},
     {"size": "medium", "d_model": 1024, "d_ff": 4096, "num_layers": 24, "num_heads": 16},
-    {"size": "large", "d_model": 1280, "d_ff": 5120, "num_layers": 36, "num_heads": 20},
-    {"size": "xl", "d_model": 2560, "d_ff": 10240, "num_layers": 32, "num_heads": 32},
-    {"size": "10B", "d_model": 4608, "d_ff": 12288, "num_layers": 50, "num_heads": 36},
+    #{"size": "large", "d_model": 1280, "d_ff": 5120, "num_layers": 36, "num_heads": 20},
+    #{"size": "xl", "d_model": 2560, "d_ff": 10240, "num_layers": 32, "num_heads": 32},
+    #{"size": "10B", "d_model": 4608, "d_ff": 12288, "num_layers": 50, "num_heads": 36},
 ]
 
 #Hyperarameters
@@ -28,7 +29,13 @@ warmup_steps = 5
 timing_steps = 10
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def profile_one_train_step(model, x, y, vocab_size, tag: str = ''):
+RESULTS_DIR = Path("benchmark_results")
+RUNS_DIR = RESULTS_DIR / "runs"
+
+def bytes_to_gib(x):
+    return x / (1024 ** 3)
+
+def profile_one_train_step(model, x, y, vocab_size, memory_dir: Path, tag: str = ''):
     '''
     仅执行一次训练步,并分别对 forward/ backward / optimizer step
     开启独立的内存历史记录与导出快照(c++&python)
@@ -48,7 +55,7 @@ def profile_one_train_step(model, x, y, vocab_size, tag: str = ''):
     torch.cuda.synchronize()            
     fwd_alloc = torch.cuda.max_memory_allocated()
     fwd_res   = torch.cuda.max_memory_reserved()
-    torch.cuda.memory._dump_snapshot(f"memory_forward{('_'+tag) if tag else ''}.pickle")
+    torch.cuda.memory._dump_snapshot(str( memory_dir / f"memory_forward{('_'+tag) if tag else ''}.pickle"))
     torch.cuda.memory._record_memory_history(enabled=None)
 
 
@@ -63,7 +70,7 @@ def profile_one_train_step(model, x, y, vocab_size, tag: str = ''):
     torch.cuda.synchronize()
     bwd_alloc = torch.cuda.max_memory_allocated()
     bwd_res   = torch.cuda.max_memory_reserved()
-    torch.cuda.memory._dump_snapshot(f"memory_backward{('_' + tag) if tag else ''}.pickle")
+    torch.cuda.memory._dump_snapshot(str( memory_dir / f"memory_backward{('_'+tag) if tag else ''}.pickle"))
     torch.cuda.memory._record_memory_history(enabled=None)
     del loss, out
     torch.cuda.synchronize()
@@ -79,15 +86,21 @@ def profile_one_train_step(model, x, y, vocab_size, tag: str = ''):
     torch.cuda.synchronize()
     opt_alloc = torch.cuda.max_memory_allocated()
     opt_res   = torch.cuda.max_memory_reserved()
-    torch.cuda.memory._dump_snapshot(f"memory_optim{('_' + tag) if tag else ''}.pickle")
+    torch.cuda.memory._dump_snapshot(str( memory_dir / f"memory_optim{('_'+tag) if tag else ''}.pickle"))
     torch.cuda.memory._record_memory_history(enabled=None)
 
     # 方便在控制台也看到峰值（字节）
+    # print(
+    #     f"[PEAK] forward  alloc={fwd_alloc/1e9:.3f} GB, reserved={fwd_res/1e9:.3f} GB\n"
+    #     f"[PEAK] backward alloc={bwd_alloc/1e9:.3f} GB, reserved={bwd_res/1e9:.3f} GB\n"
+    #     f"[PEAK] optim    alloc={opt_alloc/1e9:.3f} GB, reserved={opt_res/1e9:.3f} GB"
+    # )
+    #GiB
     print(
-        f"[PEAK] forward  alloc={fwd_alloc/1e9:.3f} GB, reserved={fwd_res/1e9:.3f} GB\n"
-        f"[PEAK] backward alloc={bwd_alloc/1e9:.3f} GB, reserved={bwd_res/1e9:.3f} GB\n"
-        f"[PEAK] optim    alloc={opt_alloc/1e9:.3f} GB, reserved={opt_res/1e9:.3f} GB"
-    )
+    f"[PEAK] forward  alloc={bytes_to_gib(fwd_alloc):.3f} GiB, reserved={bytes_to_gib(fwd_res):.3f} GiB\n"
+    f"[PEAK] backward alloc={bytes_to_gib(bwd_alloc):.3f} GiB, reserved={bytes_to_gib(bwd_res):.3f} GiB\n"
+    f"[PEAK] optim    alloc={bytes_to_gib(opt_alloc):.3f} GiB, reserved={bytes_to_gib(opt_res):.3f} GiB"
+)
 
 def benchmark(model, x, y, mode):
     model.train()
@@ -159,6 +172,14 @@ def parse_args():
 
 def main():
     args = parse_args()
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = RUNS_DIR / run_id
+    memory_dir = run_dir / "memory"
+
+    run_dir.mkdir(parents=True, exist_ok=False)
+    memory_dir.mkdir(parents=True, exist_ok=False)
+
+    print(f"[Run] Saving outputs to: {run_dir}")
     global context_length
     if args.context_length:
         context_length = args.context_length
@@ -173,6 +194,12 @@ def main():
     checkpoint_path = Path(args.checkpoint)
     res = []
     complete_tasks = set()
+
+    config_path = run_dir / "config.json"
+    config_path.write_text(
+        json.dumps(vars(args), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
     if args.resume and checkpoint_path.exists():
         print(f"\n[Resume] Loading checkpoint from {checkpoint_path}")
@@ -202,7 +229,8 @@ def main():
     ctx = torch.autocast(device_type=device, dtype=torch.bfloat16) if use_mixed else nullcontext()
     with ctx:
         for config in run_configs:
-            for mode in ['forward_and_backward']:#for mode in ["forward", "forward_and_backward", "train_step"]:
+            modes = ["train_step"] if args.profile_memory else ["forward", "forward_and_backward", "train_step"]
+            for mode in modes:#for mode in ["forward", "forward_and_backward", "train_step"]:
                 #create task identifier
                 task_id = {
                     "size": config["size"],
@@ -235,7 +263,7 @@ def main():
                 tag = f"{config['size']}_ctx{context_length}_{'bf16' if use_mixed else 'fp32'}"
                 if args.profile_memory:
                     #内存分析
-                    profile_one_train_step(model, x, y, vocab_size, tag=tag)
+                    profile_one_train_step(model, x, y, vocab_size, memory_dir=memory_dir, tag=tag)
                 else:
                     #只测时间
                     time_mean, time_std = benchmark(model, x, y, mode)
@@ -262,7 +290,7 @@ def main():
     if not res.empty:
         print(res.to_string(index=False))
 
-        out_path = Path("benchmark_results.csv")
+        out_path = run_dir / "timing_results.csv"
         res.to_csv(out_path, index=False)
         print(f"\n[Saved] Benchmark results written to {out_path}")
     else:
