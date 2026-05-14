@@ -1,67 +1,101 @@
-# CS336 Spring 2026 Assignment 3: Scaling
+# Scaling Laws: Public IsoFLOPs Analysis
 
-For a full description of the assignment, see the assignment handout at
-[cs336_assignment3_scaling.pdf](./cs336_assignment3_scaling.pdf).
+## Overview
 
-If you see any issues with the assignment handout or code, please feel free to
-raise a GitHub issue or open a pull request with a fix.
+This module is the scaling-law analysis component of the CS336-LG portfolio project. It reproduces the public IsoFLOPs fitting part of CS336 Assignment 3, using only `data/isoflops_curves.json`.
 
-## For students
+It is intentionally small: no private APIs, no training infrastructure, no leaderboard submission, and no synthetic training results. The purpose is to show clear understanding of compute-optimal scaling laws in a way that is transparent and reproducible.
 
-Install uv
+This module reproduces the public IsoFLOPs fitting part of CS336 Assignment 3. It does not use the Stanford-only B200 training API or leaderboard.
 
-```sh
-uv sync
-```
-
-Set `A3_API_KEY` to your 8-digit student ID:
-
-```sh
-export A3_API_KEY=06123456
-```
-
-The hosted training API is available at:
+## Project Structure
 
 ```text
-http://hyperturing.stanford.edu:8000
+assignment3-scaling/
+├── README.md
+├── data/
+│   └── isoflops_curves.json
+├── docs/
+│   └── scaling_law_report.md
+├── figures/
+│   ├── d_opt_scaling.png
+│   └── n_opt_scaling.png
+├── results/
+│   └── isoflops_fit_results.json
+├── scripts/
+│   └── fit_isoflops.py
+├── pyproject.toml
+└── uv.lock
 ```
 
-Click here for the [docs](http://hyperturing.stanford.edu:8000/docs) and [dashboard](http://hyperturing.stanford.edu:8000/dashboard).
+## What It Does
 
-See [`./examples/client_example.ipynb`](./examples/client_example.ipynb) for an
-example of submitting and inspecting training runs.
+- Loads public IsoFLOPs run data.
+- Groups runs by `compute_budget`.
+- Selects the lowest-loss run for each compute budget.
+- Computes `D_opt = C / (6 * N_opt)`.
+- Fitting:
+  - `N_opt(C) = A_N * C^alpha`
+  - `D_opt(C) = A_D * C^beta`
+- Generates log-log scaling plots.
+- Saves fitted coefficients, optimum points, and extrapolations to JSON.
 
-## For non-students
+## What It Does Not Do
 
-Install dependencies:
+- It does not train models.
+- It does not use the Stanford-only B200 training API.
+- It does not submit to a leaderboard.
+- It does not include the original assignment server, scheduler, database, or API scaffold.
+- It does not claim official large-scale experiment completion.
 
-```sh
-uv sync --extra server
+## Usage
+
+From this directory:
+
+```bash
+uv run python scripts/fit_isoflops.py --input data/isoflops_curves.json
 ```
 
-To download tokenized data:
+Equivalent explicit form:
 
-```sh
-uv run modal run scripts/1_download_tokenized_data.py
+```bash
+uv run python scripts/fit_isoflops.py \
+  --input data/isoflops_curves.json \
+  --figures-dir figures \
+  --results results/isoflops_fit_results.json
 ```
 
-To run training directly:
+If `uv` is unavailable, use any Python environment with `numpy` and `matplotlib` installed:
 
-```sh
-uv run cs336_scaling/training/run.py
+```bash
+python scripts/fit_isoflops.py --input data/isoflops_curves.json
 ```
 
-To run the API and dispatcher, set:
+## Current Results
 
-```sh
-DATABASE_URL_PROD="postgresql://..."
-DATABASE_URL_DEV="postgresql://..."
-INTERNAL_API_KEY="SOMEKEY"
-```
+Fit from the public IsoFLOPs data:
 
-Then run:
+| Quantity | Value |
+| --- | ---: |
+| `alpha` | `0.468683` |
+| `beta` | `0.531317` |
+| `A_N` | `1.163411e+00` |
+| `A_D` | `1.432570e-01` |
 
-```sh
-DB_ENV=prod uv run fastapi run &
-DB_ENV=prod uv run dispatcher &
-```
+Extrapolated compute-optimal estimates:
+
+| Compute `C` | Predicted `N_opt` | Predicted `D_opt` |
+| --- | ---: | ---: |
+| `1e23` | `7.005423e10` | `2.379109e11` |
+| `1e24` | `2.061185e11` | `8.085962e11` |
+
+## Outputs
+
+- `figures/n_opt_scaling.png`
+- `figures/d_opt_scaling.png`
+- `results/isoflops_fit_results.json`
+- `docs/scaling_law_report.md`
+
+## Portfolio Role
+
+In the full CS336-LG project, this is a compact theory and analysis module. It supports the broader systems/data/alignment work by showing that the project understands compute-optimal scaling, while keeping the implementation honest and reproducible.
