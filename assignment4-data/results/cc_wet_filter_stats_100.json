@@ -1,0 +1,11 @@
+{
+  "num_input_documents": 100,
+  "num_extracted_documents": 100,
+  "num_passed_language_filter": 44,
+  "num_passed_gopher_filter": 31,
+  "num_email_masked": 16,
+  "num_phone_masked": 25,
+  "num_ip_masked": 0,
+  "num_duplicate_lines_removed": 512,
+  "num_output_documents": 31
+}
