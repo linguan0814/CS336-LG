@@ -1,3 +1,0 @@
-implementation,batch_size,seq_len,d_model,dtype,causal,forward_mean_ms,forward_std_ms,backward_mean_ms,backward_std_ms,forward_peak_gib,backward_peak_gib,status,error
-torch,1,16,8,float32,False,0.06218899943633005,0.0,0.1548670006741304,0.0,,,ok,
-flash_pytorch,1,16,8,float32,False,0.21321500025806017,0.0,0.2740579984674696,0.0,,,ok,
