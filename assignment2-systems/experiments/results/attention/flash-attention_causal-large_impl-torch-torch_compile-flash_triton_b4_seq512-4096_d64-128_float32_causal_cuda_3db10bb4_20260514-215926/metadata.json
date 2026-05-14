@@ -1,0 +1,37 @@
+{
+  "config": {
+    "device": "cuda",
+    "dtype": "float32",
+    "batch_size": 4,
+    "seq_lengths": [
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "d_models": [
+      64,
+      128
+    ],
+    "implementations": [
+      "torch",
+      "torch_compile",
+      "flash_triton"
+    ],
+    "causal": true,
+    "warmup_steps": 5,
+    "timing_steps": 20,
+    "output_dir": "experiments/results",
+    "run_id": "flash-attention_causal-large_impl-torch-torch_compile-flash_triton_b4_seq512-4096_d64-128_float32_causal_cuda_3db10bb4_20260514-215926",
+    "run_label": "causal-large"
+  },
+  "environment": {
+    "torch": "2.11.0+cu130",
+    "device": "cuda",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_total_memory_gib": 7.99560546875,
+    "cuda_runtime": "13.0",
+    "git_short_commit": "3db10bb4"
+  }
+}

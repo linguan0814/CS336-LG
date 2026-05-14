@@ -1,0 +1,36 @@
+{
+  "config": {
+    "device": "cuda",
+    "dtype": "float32",
+    "batch_size": 2,
+    "seq_lengths": [
+      128,
+      256,
+      512
+    ],
+    "d_models": [
+      32,
+      64
+    ],
+    "implementations": [
+      "torch",
+      "flash_pytorch",
+      "flash_triton"
+    ],
+    "causal": false,
+    "warmup_steps": 3,
+    "timing_steps": 8,
+    "output_dir": "experiments/results",
+    "run_id": "flash-attention_flash-pytorch-small_impl-torch-flash_pytorch-flash_triton_b2_seq128-512_d32-64_float32_noncausal_cuda_3db10bb4_20260514-213506",
+    "run_label": "flash-pytorch-small"
+  },
+  "environment": {
+    "torch": "2.11.0+cu130",
+    "device": "cuda",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_total_memory_gib": 7.99560546875,
+    "cuda_runtime": "13.0",
+    "git_short_commit": "3db10bb4"
+  }
+}

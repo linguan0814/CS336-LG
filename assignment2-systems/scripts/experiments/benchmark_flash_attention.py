@@ -14,13 +14,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.append(str(PROJECT_ROOT))
 
 from benchmark_utils import (  # noqa: E402
+    build_run_id,
     clear_cuda_state,
+    compact_range,
+    create_run_dir,
     default_results_root,
     environment_metadata,
     peak_memory_gib,
+    public_config,
     time_ms,
     write_json,
     write_markdown_table,
+    write_run_report,
 )
 from cs336_systems.flash_attention.flash_att_pytorch import flash_attention_pytorch  # noqa: E402
 from cs336_systems.flash_attention.flash_att_triton import flash_attention_triton  # noqa: E402
@@ -58,7 +63,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--causal", action="store_true")
     parser.add_argument("--warmup-steps", type=int, default=5)
     parser.add_argument("--timing-steps", type=int, default=25)
-    parser.add_argument("--output-dir", type=Path, default=default_results_root() / "attention")
+    parser.add_argument("--output-dir", type=Path, default=default_results_root())
+    parser.add_argument("--run-id", type=str, default=None, help="Optional semantic run id. A unique suffix is added only on collision.")
+    parser.add_argument("--run-label", type=str, default=None, help="Optional human label to include in the generated run id.")
     return parser.parse_args()
 
 
@@ -227,12 +234,38 @@ def main() -> None:
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA requested but unavailable.")
 
-    run_name = f"flash_attention_{args.dtype}_{'causal' if args.causal else 'noncausal'}"
-    output_dir = args.output_dir / run_name
-    output_dir.mkdir(parents=True, exist_ok=True)
+    environment = environment_metadata(device)
+    generated_run_id = build_run_id(
+        [
+            "flash-attention",
+            args.run_label or "",
+            f"impl-{'+'.join(args.implementations)}",
+            f"b{args.batch_size}",
+            f"seq{compact_range(args.seq_lengths)}",
+            f"d{compact_range(args.d_models)}",
+            args.dtype,
+            "causal" if args.causal else "noncausal",
+            device.type,
+        ],
+        git_short_commit=environment.get("git_short_commit"),
+    )
+    run_id = args.run_id or generated_run_id
+    output_dir = create_run_dir("attention", run_id, args.output_dir)
 
-    config = vars(args) | {"device": str(device), "run_name": run_name}
-    write_json({"config": config, "environment": environment_metadata(device)}, output_dir / "metadata.json")
+    config = public_config(vars(args) | {"device": str(device), "run_id": output_dir.name})
+    write_json({"config": config, "environment": environment}, output_dir / "metadata.json")
+    write_run_report(
+        output_dir / "run.md",
+        title="Flash Attention Benchmark Run",
+        run_id=output_dir.name,
+        config=config,
+        environment=environment,
+        outputs=["metadata.json", "run.md", "results.csv", "results.json", "results.md"],
+        notes=[
+            "CSV and JSON are canonical machine-readable records.",
+            "Markdown results are a quick preview and should not be used as the source for plots.",
+        ],
+    )
 
     results: list[AttentionBenchmarkResult] = []
     for seq_len in args.seq_lengths:

@@ -1,0 +1,122 @@
+[
+  {
+    "strategy": "DDP",
+    "world_size": 1,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Replicates parameters, gradients, and AdamW first/second moments."
+  },
+  {
+    "strategy": "ShardedOptimizer",
+    "world_size": 1,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Replicates model and gradients; shards optimizer state."
+  },
+  {
+    "strategy": "FSDP",
+    "world_size": 1,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+  },
+  {
+    "strategy": "DDP",
+    "world_size": 2,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Replicates parameters, gradients, and AdamW first/second moments."
+  },
+  {
+    "strategy": "ShardedOptimizer",
+    "world_size": 2,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 3.725290298461914,
+    "total_gib_per_rank": 11.175870895385742,
+    "notes": "Replicates model and gradients; shards optimizer state."
+  },
+  {
+    "strategy": "FSDP",
+    "world_size": 2,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 1.862645149230957,
+    "grad_gib_per_rank": 1.862645149230957,
+    "optimizer_state_gib_per_rank": 3.725290298461914,
+    "total_gib_per_rank": 7.450580596923828,
+    "notes": "Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+  },
+  {
+    "strategy": "DDP",
+    "world_size": 4,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Replicates parameters, gradients, and AdamW first/second moments."
+  },
+  {
+    "strategy": "ShardedOptimizer",
+    "world_size": 4,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 1.862645149230957,
+    "total_gib_per_rank": 9.313225746154785,
+    "notes": "Replicates model and gradients; shards optimizer state."
+  },
+  {
+    "strategy": "FSDP",
+    "world_size": 4,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 0.9313225746154785,
+    "grad_gib_per_rank": 0.9313225746154785,
+    "optimizer_state_gib_per_rank": 1.862645149230957,
+    "total_gib_per_rank": 3.725290298461914,
+    "notes": "Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+  },
+  {
+    "strategy": "DDP",
+    "world_size": 8,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 7.450580596923828,
+    "total_gib_per_rank": 14.901161193847656,
+    "notes": "Replicates parameters, gradients, and AdamW first/second moments."
+  },
+  {
+    "strategy": "ShardedOptimizer",
+    "world_size": 8,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 3.725290298461914,
+    "grad_gib_per_rank": 3.725290298461914,
+    "optimizer_state_gib_per_rank": 0.9313225746154785,
+    "total_gib_per_rank": 8.381903171539307,
+    "notes": "Replicates model and gradients; shards optimizer state."
+  },
+  {
+    "strategy": "FSDP",
+    "world_size": 8,
+    "parameters_m": 1000.0,
+    "param_gib_per_rank": 0.46566128730773926,
+    "grad_gib_per_rank": 0.46566128730773926,
+    "optimizer_state_gib_per_rank": 0.9313225746154785,
+    "total_gib_per_rank": 1.862645149230957,
+    "notes": "Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "config": {
+    "parameters_m": 125.0,
+    "world_sizes": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "output_dir": "experiments/results",
+    "run_id": "distributed-memory_smoke_125m-params_world1-8_3db10bb4_20260514-213219",
+    "run_label": "smoke"
+  },
+  "environment": {
+    "torch": "2.11.0+cu130",
+    "device": "cpu",
+    "cuda_available": true,
+    "git_short_commit": "3db10bb4"
+  }
+}

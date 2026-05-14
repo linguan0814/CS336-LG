@@ -1,0 +1,29 @@
+{
+  "config": {
+    "device": "cpu",
+    "dtype": "float32",
+    "batch_size": 1,
+    "seq_lengths": [
+      16
+    ],
+    "d_models": [
+      8
+    ],
+    "implementations": [
+      "torch",
+      "flash_pytorch"
+    ],
+    "causal": false,
+    "warmup_steps": 1,
+    "timing_steps": 1,
+    "output_dir": "experiments/results",
+    "run_id": "flash-attention_smoke_impl-torch-flash_pytorch_b1_seq16_d8_float32_noncausal_cpu_3db10bb4_20260514-213204",
+    "run_label": "smoke"
+  },
+  "environment": {
+    "torch": "2.11.0+cu130",
+    "device": "cpu",
+    "cuda_available": true,
+    "git_short_commit": "3db10bb4"
+  }
+}

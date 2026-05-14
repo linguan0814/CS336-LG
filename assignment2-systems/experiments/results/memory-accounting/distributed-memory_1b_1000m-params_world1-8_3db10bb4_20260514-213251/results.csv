@@ -1,0 +1,13 @@
+strategy,world_size,parameters_m,param_gib_per_rank,grad_gib_per_rank,optimizer_state_gib_per_rank,total_gib_per_rank,notes
+DDP,1,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,"Replicates parameters, gradients, and AdamW first/second moments."
+ShardedOptimizer,1,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,Replicates model and gradients; shards optimizer state.
+FSDP,1,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,"Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+DDP,2,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,"Replicates parameters, gradients, and AdamW first/second moments."
+ShardedOptimizer,2,1000.0,3.725290298461914,3.725290298461914,3.725290298461914,11.175870895385742,Replicates model and gradients; shards optimizer state.
+FSDP,2,1000.0,1.862645149230957,1.862645149230957,3.725290298461914,7.450580596923828,"Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+DDP,4,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,"Replicates parameters, gradients, and AdamW first/second moments."
+ShardedOptimizer,4,1000.0,3.725290298461914,3.725290298461914,1.862645149230957,9.313225746154785,Replicates model and gradients; shards optimizer state.
+FSDP,4,1000.0,0.9313225746154785,0.9313225746154785,1.862645149230957,3.725290298461914,"Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."
+DDP,8,1000.0,3.725290298461914,3.725290298461914,7.450580596923828,14.901161193847656,"Replicates parameters, gradients, and AdamW first/second moments."
+ShardedOptimizer,8,1000.0,3.725290298461914,3.725290298461914,0.9313225746154785,8.381903171539307,Replicates model and gradients; shards optimizer state.
+FSDP,8,1000.0,0.46566128730773926,0.46566128730773926,0.9313225746154785,1.862645149230957,"Shards parameters, gradients, and optimizer state; ignores transient all-gather buffers."

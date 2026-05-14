@@ -5,7 +5,17 @@ import csv
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from benchmark_utils import default_results_root, write_json, write_markdown_table
+from benchmark_utils import (
+    build_run_id,
+    compact_range,
+    create_run_dir,
+    default_results_root,
+    environment_metadata,
+    public_config,
+    write_json,
+    write_markdown_table,
+    write_run_report,
+)
 
 
 BYTES_FP32 = 4
@@ -27,7 +37,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Theoretical per-rank memory accounting for DDP/ZeRO/FSDP.")
     parser.add_argument("--parameters-m", type=float, default=125.0, help="Number of model parameters in millions.")
     parser.add_argument("--world-sizes", type=int, nargs="+", default=[1, 2, 4, 8])
-    parser.add_argument("--output-dir", type=Path, default=default_results_root() / "distributed_memory")
+    parser.add_argument("--output-dir", type=Path, default=default_results_root())
+    parser.add_argument("--run-id", type=str, default=None)
+    parser.add_argument("--run-label", type=str, default=None)
     return parser.parse_args()
 
 
@@ -94,12 +106,35 @@ def write_csv(rows: list[MemoryAccountingRow], path: Path) -> None:
 def main() -> None:
     args = parse_args()
     rows = accounting_rows(args.parameters_m, args.world_sizes)
-    output_dir = args.output_dir / f"{args.parameters_m:g}M_params"
+    environment = environment_metadata(device=__import__("torch").device("cpu"))
+    generated_run_id = build_run_id(
+        [
+            "distributed-memory",
+            args.run_label or "",
+            f"{args.parameters_m:g}m-params",
+            f"world{compact_range(args.world_sizes)}",
+        ],
+        git_short_commit=environment.get("git_short_commit"),
+    )
+    output_dir = create_run_dir("memory-accounting", args.run_id or generated_run_id, args.output_dir)
     row_dicts = [asdict(row) for row in rows]
     write_csv(rows, output_dir / "results.csv")
     write_json(row_dicts, output_dir / "results.json")
     write_markdown_table(row_dicts, output_dir / "results.md")
-    write_json(vars(args), output_dir / "metadata.json")
+    config = public_config(vars(args) | {"run_id": output_dir.name})
+    write_json({"config": config, "environment": environment}, output_dir / "metadata.json")
+    write_run_report(
+        output_dir / "run.md",
+        title="Distributed Memory Accounting Run",
+        run_id=output_dir.name,
+        config=config,
+        environment=environment,
+        outputs=["metadata.json", "run.md", "results.csv", "results.json", "results.md"],
+        notes=[
+            "This is theoretical accounting for persistent parameter, gradient, and AdamW state memory.",
+            "Transient communication buffers and activation memory are not included.",
+        ],
+    )
     print(f"Saved memory accounting to {output_dir}")
 
 

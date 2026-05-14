@@ -1,0 +1,40 @@
+{
+  "config": {
+    "device": "cuda",
+    "model_sizes": [
+      "small"
+    ],
+    "context_lengths": [
+      128,
+      256,
+      512
+    ],
+    "batch_size": 1,
+    "vocab_size": 10000,
+    "precisions": [
+      "fp32",
+      "bf16"
+    ],
+    "modes": [
+      "forward",
+      "forward_backward",
+      "train_step"
+    ],
+    "warmup_steps": 2,
+    "timing_steps": 5,
+    "learning_rate": 0.001,
+    "rope_theta": 10000.0,
+    "output_dir": "experiments/results",
+    "run_id": "transformer-step_small-b1_models-small_b1_ctx128-512_prec-fp32-bf16_modes-forward-forward_backward-train_step_cuda_3db10bb4_20260514-213606",
+    "run_label": "small-b1"
+  },
+  "environment": {
+    "torch": "2.11.0+cu130",
+    "device": "cuda",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_total_memory_gib": 7.99560546875,
+    "cuda_runtime": "13.0",
+    "git_short_commit": "3db10bb4"
+  }
+}
