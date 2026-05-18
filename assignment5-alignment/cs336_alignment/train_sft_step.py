@@ -2,7 +2,6 @@ import argparse
 import json
 import random
 from unittest.mock import patch
-from urllib import response
 import os
 import torch
 import wandb
@@ -66,10 +65,24 @@ def get_batch(tokenized_data, batch_size, device):
         "response_mask": tokenized_data["response_mask"][batch_indices].to(device),
     }
 
+
+def validate_paths(args):
+    """在加载大模型前检查关键输入路径，避免浪费 GPU 时间。"""
+    required_paths = [
+        args.model_id,
+        args.train_data_path,
+        args.val_data_path,
+        args.prompt_path,
+    ]
+    missing_paths = [path for path in required_paths if not os.path.exists(path)]
+    if missing_paths:
+        raise FileNotFoundError(f"Missing required paths: {missing_paths}")
+
 #===================================
 # 训练逻辑
 #===================================
 def run_sft_experiment(args):
+    validate_paths(args)
     #1.基础配置
     #计算梯度累计步数： batch / micro batch
     if args.gradient_accumulation_steps is None:
@@ -98,6 +111,7 @@ def run_sft_experiment(args):
     ).to(args.device)
 
     #开启梯度检查点
+    policy.config.use_cache = False
     policy.gradient_checkpointing_enable()
 
     #优化器设置
@@ -126,6 +140,13 @@ def run_sft_experiment(args):
         raw_train_data = random.sample(raw_train_data, args.dataset_size)
         print(f"Sampled subset size: {args.dataset_size}")
 
+    for item in raw_train_data:
+        if "prompt" not in item or "response" not in item:
+            raise ValueError(
+                "SFT train data must contain prompt/response keys. "
+                "Run scripts/prepare_gsm8k_sft.py first for raw GSM8K data."
+            )
+
     print("Pre-tokenizing entire training dataset...")
     # 优化点：一次性处理所有数据，后续训练只需切片，极大提升速度
     tokenized_train_data = tokenize_prompt_and_output(
@@ -146,9 +167,13 @@ def run_sft_experiment(args):
             if i >= args.max_eval_samples:
                 break
             item = json.loads(line)
-            raw_a = item["answer"]
-            gold = raw_a.split("####")[-1].strip() if "####" in raw_a else raw_a.strip()
-            formatted_prompt = r1_template.replace("{question}", item["question"])
+            if "prompt" in item and "ground_truth" in item:
+                formatted_prompt = item["prompt"]
+                gold = item["ground_truth"]
+            else:
+                raw_a = item["answer"]
+                gold = raw_a.split("####")[-1].strip() if "####" in raw_a else raw_a.strip()
+                formatted_prompt = r1_template.replace("{question}", item["question"])
             val_prompts.append(formatted_prompt)
             val_ground_truths.append(gold)
 
@@ -162,8 +187,6 @@ def run_sft_experiment(args):
 # ================================================================
 # 4. Step-based 训练主循环
 # ================================================================
-
-    progress_bar = tqdm(range(args.max_steps), desc="SFT Steps")
 
     print(f"\n[Step 0] Starting Evaluation...")
     policy.eval()
@@ -182,7 +205,7 @@ def run_sft_experiment(args):
     print(f"Eval Accuracy: {metrics.get('eval/accuracy', 0):.2%}")
     policy.train()
 
-    for step in range(args.max_steps):
+    for step in tqdm(range(args.max_steps), desc="SFT Steps"):
 
         accumulated_loss = 0.0
         accumulated_entropy = 0.0
@@ -235,8 +258,6 @@ def run_sft_experiment(args):
         optimizer.step()
         optimizer.zero_grad()
 
-        progress_bar.update(1)
-
         # 记录日志
         wandb.log({
             "train/loss": accumulated_loss / grad_accum_steps,
@@ -285,8 +306,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CS336 SFT Step-based Training")
 
     # 路径
-    parser.add_argument("--model_id", type=str, default="model/Qwen2.5-Math-1.5B")
-    parser.add_argument("--train_data_path", type=str, default="data/gsm8k/train_sft_reason_gsm8k_raw.jsonl")
+    parser.add_argument("--model_id", type=str, default="models/Qwen2.5-Math-1.5B")
+    parser.add_argument("--train_data_path", type=str, default="data/gsm8k/train_sft_r1_zero.jsonl")
     parser.add_argument("--val_data_path", type=str, default="data/gsm8k/test.jsonl")
     parser.add_argument("--prompt_path", type=str, default="cs336_alignment/prompts/r1_zero.prompt")
     parser.add_argument("--output_dir", type=str, default="result/checkpoints")

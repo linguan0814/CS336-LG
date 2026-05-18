@@ -5,7 +5,7 @@ from typing import Callable, Literal
 import torch
 from torch import Tensor
 
-from cs336_alignment.tensor_utils import masked_mean
+from cs336_alignment.sft_utils import masked_mean
 
 
 # Computes per-rollout rewards and group-normalized GRPO advantages.

@@ -129,11 +129,11 @@ def sft_microbatch_train_step(
 
     #第一个元素 scaled_loss 用于测试对比
     #第二个元素 记录未缩放前的microbatch 平均 loss 用于日志
-    meatadata = {
+    metadata = {
         "loss":microbatch_loss_mean.detach()
     }
 
-    return scaled_loss, meatadata
+    return scaled_loss, metadata
 
 
 # Packs a JSONL SFT dataset into fixed-length next-token prediction examples.
@@ -272,8 +272,6 @@ def log_generations(
         f"Accuracy: {metrics[f'{log_prefix}/accuracy']:.4f}, "
         f"Avg Len: {metrics[f'{log_prefix}/avg_length']:.1f}"
     )
-    return metrics
-
     return metrics
 
 
