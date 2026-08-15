@@ -1,0 +1,83 @@
+# Python, tooling, and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+env/
+ENV/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Operating-system and editor metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Training data, model artifacts, and experiment state
+data/
+models/
+model/
+artifacts/
+wandb/
+runs/
+logs/
+checkpoints/
+outputs/
+result/
+results/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.parquet
+*.npy
+*.npz
+*.pkl
+*.wandb
+
+# Small fixtures are source-controlled because tests depend on them.
+!assignment1-basics/tests/_snapshots/*.npz
+!assignment2-systems/tests/fixtures/*.pt
+# Model-weight fixtures (*.pt / *.safetensors) remain local and are never
+# included in the public release.
+
+# Local report archives are retained for study but never published.
+assignment1-basics/reports/
+assignment5-alignment/reports/
+**/local/
+
+# Generated outputs retained locally for replay/debugging, never committed.
+assignment1-basics/artifacts/
+assignment1-basics/results/
+assignment1-basics/wandb/
+assignment2-systems/experiments/
+assignment3-scaling/results/
+assignment4-data/results/
+
+# Small public inputs and derived summaries used by module documentation.
+!assignment3-scaling/data/
+!assignment3-scaling/data/isoflops_curves.json
+!assignment3-scaling/results/
+!assignment3-scaling/results/isoflops_fit_results.json
+!assignment4-data/data/
+!assignment4-data/data/real_web_urls.txt
+!assignment1-basics/tests/_snapshots/test_train_bpe_special_tokens.pkl
+
+# Course handouts and local agent instructions are not part of the public project.
+**/cs336*.pdf
+AGENTS.md
+CLAUDE.md

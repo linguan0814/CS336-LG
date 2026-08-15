@@ -1,0 +1,22 @@
+# Small public-web sample for the A4 real-data run.
+# Keep this list modest. The fetch script also supports --limit.
+https://www.example.com/
+https://www.iana.org/help/example-domains
+https://www.rfc-editor.org/rfc/rfc9110.html
+https://www.rfc-editor.org/rfc/rfc8259.html
+https://docs.python.org/3/tutorial/introduction.html
+https://docs.python.org/3/library/json.html
+https://docs.python.org/3/howto/urllib2.html
+https://www.gnu.org/philosophy/free-sw.html
+https://www.gnu.org/licenses/gpl-3.0.html
+https://www.w3.org/TR/WCAG21/
+https://www.w3.org/TR/html52/
+https://www.w3.org/Provider/Style/URI
+https://www.sqlite.org/lang.html
+https://www.sqlite.org/whentouse.html
+https://www.postgresql.org/docs/current/tutorial.html
+https://www.kernel.org/doc/html/latest/process/2.Process.html
+https://www.debian.org/intro/about
+https://www.freebsd.org/about/
+https://www.mozilla.org/en-US/about/manifesto/
+https://creativecommons.org/licenses/by/4.0/
