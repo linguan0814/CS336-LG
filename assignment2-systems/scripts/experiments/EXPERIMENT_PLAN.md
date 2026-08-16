@@ -10,7 +10,7 @@ The experiments should support three things:
 
 - Validate correctness beyond unit tests with small smoke runs.
 - Produce quantitative results for the final project report.
-- Create resume-ready evidence for systems work: speed, memory, scaling, and tradeoffs.
+- Record reproducible systems evidence: speed, memory, scaling, and trade-offs.
 
 ## Directory Standard
 

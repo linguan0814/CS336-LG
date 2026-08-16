@@ -10,4 +10,4 @@ The SFT track uses GSM8K-style data and is separate from the Math12K GRPO eviden
 
 ## Public-release boundary
 
-All model paths, datasets, checkpoints, W&B logs, and remote-machine details are placeholders or local-only. The runbook documents how the existing experiment was organized; it is not a claim that a reviewer can reproduce the original run without obtaining the same external inputs.
+All model paths, datasets, checkpoints, W&B logs, and remote-machine details are placeholders or local-only. The runbook documents how the existing experiment was organized; reproducing the original run requires obtaining the same external inputs independently.

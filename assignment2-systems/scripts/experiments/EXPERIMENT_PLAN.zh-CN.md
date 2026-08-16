@@ -2,7 +2,7 @@
 
 [中文](EXPERIMENT_PLAN.zh-CN.md) | [English](EXPERIMENT_PLAN.md)
 
-这份 runbook 规定 A2 attention、KV Cache 和 Transformer-step benchmark 的执行顺序、正确性门禁和输出格式。它是实验参考，不要求 reviewer 重新运行大规模 CUDA 任务。
+这份 runbook 规定 A2 attention、KV Cache 和 Transformer-step benchmark 的执行顺序、正确性门禁和输出格式。它是实验参考，不要求使用者重新运行大规模 CUDA 任务。
 
 ## 1. 实验目标
 

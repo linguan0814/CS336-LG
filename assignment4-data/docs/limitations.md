@@ -2,7 +2,7 @@
 
 [中文](limitations.zh-CN.md) | English
 
-This A4 module is intentionally scoped as a portfolio-ready core data filtering pipeline.
+This A4 module is intentionally scoped as a compact, auditable core data-filtering pipeline.
 
 What it does not claim:
 

@@ -2,7 +2,7 @@
 
 [中文](README.zh-CN.md) | English
 
-The shell scripts in this directory are launch configurations for the completed A5 ablations. They are kept as reproducible references, not as a requirement for a reviewer to rerun large jobs.
+The shell scripts in this directory are launch configurations for the completed A5 ablations. They are retained as reproducible references; rerunning the large jobs is optional.
 
 | Script | Study |
 | --- | --- |

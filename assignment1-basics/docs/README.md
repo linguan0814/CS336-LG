@@ -22,4 +22,4 @@ Build a compact causal language-model pipeline from raw text to generation while
 
 ## Reproduction boundary
 
-Run `uv run pytest` for the checked-in test suite. Full training additionally requires a locally prepared corpus and sufficient compute. The public project does not claim that a reviewer can reproduce the original training run without independently obtaining those inputs.
+Run `uv run pytest` for the checked-in test suite. Full training additionally requires a locally prepared corpus and sufficient compute. Reproducing the original training run requires independently obtaining those external inputs.

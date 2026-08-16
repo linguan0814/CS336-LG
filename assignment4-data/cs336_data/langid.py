@@ -10,7 +10,7 @@ from functools import lru_cache
 def _load_fasttext_model():
     """Load fastText if explicitly configured.
 
-    The portfolio pipeline defaults to a deterministic fallback because the
+    The public pipeline defaults to a deterministic fallback because the
     production `lid.176.bin` model is large and is not checked into this repo.
     Set `FASTTEXT_LID_MODEL` to enable fastText locally.
     """

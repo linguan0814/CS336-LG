@@ -1,7 +1,7 @@
 [project]
 name = "cs336-lg-scaling-laws"
 version = "0.1.0"
-description = "Public IsoFLOPs scaling-law fitting module for the CS336-LG portfolio project."
+description = "Public IsoFLOPs scaling-law fitting module for CS336-LG."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

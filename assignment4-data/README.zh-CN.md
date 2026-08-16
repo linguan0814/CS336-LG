@@ -6,7 +6,7 @@
 
 这个模块是 CS336-LG 项目中的 **pretraining data engineering** 部分，目标是把 noisy web data 转换成更适合语言模型预训练的 filtered corpus。
 
-和原始作业的 full-scale leaderboard 目标不同，这里采用更适合实习项目展示的范围：实现核心过滤组件，在真实网页和 Common Crawl WET 小样本上跑通，并输出可审计的过滤统计和可视化结果。
+和原始作业的 full-scale leaderboard 目标不同，本模块采用可在公开环境中复现和审计的范围：实现核心过滤组件，在真实网页和 Common Crawl WET 小样本上跑通，并输出过滤统计和可视化结果。
 
 ## 已实现功能
 

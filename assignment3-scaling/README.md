@@ -4,7 +4,7 @@
 
 ## Overview
 
-This module is the scaling-law analysis component of the CS336-LG portfolio project. It reproduces the public IsoFLOPs fitting part of CS336 Assignment 3, using only `data/isoflops_curves.json`.
+This module is the scaling-law analysis component of CS336-LG. It reproduces the public IsoFLOPs fitting part of CS336 Assignment 3, using only `data/isoflops_curves.json`.
 
 It is intentionally small: no private APIs, no training infrastructure, no leaderboard submission, and no synthetic training results. The purpose is to show clear understanding of compute-optimal scaling laws in a way that is transparent and reproducible.
 
@@ -98,6 +98,6 @@ Extrapolated compute-optimal estimates:
 - `results/isoflops_fit_results.json`
 - `docs/scaling_law_report.md`
 
-## Portfolio Role
+## Role in the Repository
 
-In the full CS336-LG project, this is a compact theory and analysis module. It supports the broader systems/data/alignment work by showing that the project understands compute-optimal scaling, while keeping the implementation honest and reproducible.
+This compact theory and analysis module complements the systems, data, and alignment components with a reproducible implementation of compute-optimal scaling-law fitting.
